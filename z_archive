@@ -1,0 +1,95 @@
+from flask import Flask, request, render_template
+
+app = Flask(__name__)
+
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        input_text = request.form['names']
+
+        # Split input into individual names/notes
+        elements = input_text.split(", ")
+
+       
+        elements = [element.strip() for element in elements if element.strip()]
+
+        # store the counts of names and emoji
+        name_counts = {}
+        emoji_counts = {}
+
+        # Iterate through inputs
+        previous_name = None
+        for element in elements:
+            # Blue raven is gay
+            element_upper = element.strip().upper().replace(" ", "").replace("-", "")
+
+            # add pb emoji
+            if element_upper in ["PB", "POWERBILL"] and previous_name:
+                emoji_counts[previous_name]["PB"] += 1
+
+            # add sameday emoji
+            elif element_upper in ["SAMEDAY", "SOMEDAY"] and previous_name:
+                emoji_counts[previous_name]["same_day"] += 1
+
+            else:
+                # store name for future emoji reference
+                previous_name = element_upper
+
+                # coount name
+                if element_upper in name_counts:
+                    name_counts[element_upper] += 1
+                else:
+                    name_counts[element_upper] = 1
+                    emoji_counts[element_upper] = {"PB": 0, "same_day": 0}
+
+        # Find maximum counts for pb and sameday and leads
+        max_pb = max(emoji_counts[name]["PB"] for name in emoji_counts)
+        max_same_day = max(emoji_counts[name]["same_day"] for name in emoji_counts)
+        max_name_count = max(name_counts.values())
+
+        # Determine people who have the highest counts for PB, same day, and leads
+        most_pb_people = {name for name in emoji_counts if emoji_counts[name]["PB"] == max_pb}
+        most_same_day_people = {name for name in emoji_counts if emoji_counts[name]["same_day"] == max_same_day}
+        most_name_people = {name for name, count in name_counts.items() if count == max_name_count}
+
+        # Sort names by frequency, then PB count, and then by same day count 
+        sorted_name_counts = sorted(
+            name_counts.items(),
+            key=lambda x: (x[1], emoji_counts[x[0]]["PB"], emoji_counts[x[0]]["same_day"]),
+            reverse=True
+        )
+
+        # CLT > RDA
+        output = []
+        previous_count = None
+        for name, count in sorted_name_counts:
+            pb_emoji = "🧾" * emoji_counts[name]["PB"]
+            same_day_emoji = "🔥" * emoji_counts[name]["same_day"]
+
+    
+            formatted_name = f" {name}"
+
+            if name in most_pb_people:
+                formatted_name = "😈" + formatted_name
+            if name in most_same_day_people:
+                formatted_name = "💰" + formatted_name
+            if name in most_name_people:
+                formatted_name = "👑" + formatted_name
+
+            # blank line between groups 
+            if previous_count is not None and count != previous_count:
+                output.append("")
+            output.append(f"{formatted_name}: {count} {pb_emoji}{same_day_emoji}")
+            previous_count = count
+
+    
+        output_result = "\n".join(output)
+
+
+        return render_template('index.html', output=output_result)
+
+  
+    return render_template('index.html', output="")
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=81)
